@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 export default function UserList() {
     const [users, setUsers] = useState([]);
@@ -6,6 +7,13 @@ export default function UserList() {
     // State for the Popup Window
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
+    const [newUser, setNewUser] = useState({
+        username: "",
+        email: "",
+        password: "",
+        firstname: "",
+        lastname: ""
+    });
 
     const API_URL = import.meta.env.VITE_API_URL;
 
@@ -25,6 +33,37 @@ export default function UserList() {
             }
         } catch (error) {
             console.error("Error fetching users:", error);
+        }
+    }
+
+    async function handleCreate(e) {
+        e.preventDefault();
+        if (!newUser.username || !newUser.email || !newUser.password) {
+            alert("Username, email and password are required");
+            return;
+        }
+        try {
+            const res = await fetch(`${API_URL}/api/user`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newUser)
+            });
+            if (!res.ok) {
+                const msg = await res.text();
+                alert("Create failed: " + msg);
+                return;
+            }
+            await fetchUsers();
+            setNewUser({
+                username: "",
+                email: "",
+                password: "",
+                firstname: "",
+                lastname: ""
+            });
+            alert("User created. They can now log in.");
+        } catch (err) {
+            alert("Create failed");
         }
     }
 
@@ -87,10 +126,22 @@ export default function UserList() {
                 <div className="user-header">
                     <div>
                         <h2 style={{ margin: 0 }}>User Management</h2>
-                        <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>Edit or remove existing accounts</p>
+                        <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>Create, edit or remove accounts</p>
                     </div>
-                    <button className="btn btn-primary" onClick={fetchUsers}>Refresh</button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                        <Link to="/profile"><button className="btn btn-ghost">Back to Profile</button></Link>
+                        <button className="btn btn-primary" onClick={fetchUsers}>Refresh</button>
+                    </div>
                 </div>
+
+                <form className="new-user-form" onSubmit={handleCreate}>
+                    <div className="field"><label>Username</label><input value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} /></div>
+                    <div className="field"><label>Email</label><input type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
+                    <div className="field"><label>Password</label><input type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} /></div>
+                    <div className="field"><label>First Name</label><input value={newUser.firstname} onChange={e => setNewUser({ ...newUser, firstname: e.target.value })} /></div>
+                    <div className="field"><label>Last Name</label><input value={newUser.lastname} onChange={e => setNewUser({ ...newUser, lastname: e.target.value })} /></div>
+                    <button className="btn btn-primary" type="submit" style={{ alignSelf: "flex-start" }}>Add User</button>
+                </form>
 
                 <table className="user-table">
                     <thead>
