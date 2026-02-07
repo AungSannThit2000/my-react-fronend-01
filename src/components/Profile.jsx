@@ -34,21 +34,25 @@ export default function Profile() {
         }
     }
     async function fetchProfile() {
-        const result = await fetch(`${API_URL}/api/user/profile`, {
-            credentials: "include"
-        });
-        if (result.status == 401) {
-            logout();
-        }
-        else {
-            const data = await result.json();
-            if (data.profileImage != null) {
-                console.log("has image...");
-                setHasImage(true);
+        try {
+            const result = await fetch(`${API_URL}/api/user/profile`, {
+                credentials: "include"
+            });
+            if (result.status === 401) {
+                logout();
+                return;
             }
-            console.log("data: ", data);
-            setIsLoading(false);
+            if (!result.ok) {
+                console.log("Profile load failed:", result.status);
+                return;
+            }
+            const data = await result.json();
+            setHasImage(Boolean(data.profileImage));
             setData(data);
+        } catch (err) {
+            console.log("Profile fetch error:", err);
+        } finally {
+            setIsLoading(false);
         }
     }
     useEffect(() => {
