@@ -33,7 +33,8 @@ export default function UserList() {
         if (!confirm("Are you sure you want to delete this user?")) return;
 
         try {
-            await fetch(`${API_URL}/api/user?id=${id}`, { method: "DELETE" });
+            const res = await fetch(`${API_URL}/api/user/${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("delete failed");
             // Update UI immediately
             setUsers(users.filter(u => u._id !== id));
         } catch (error) {
@@ -55,14 +56,13 @@ export default function UserList() {
     // --- 4. SAVE CHANGES (Update) ---
     async function saveUser() {
         try {
-            const res = await fetch(`${API_URL}/api/user`, {
-                method: "PUT",
+            const res = await fetch(`${API_URL}/api/user/${editingUser._id}`, {
+                method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    _id: editingUser._id,
                     firstname: editingUser.firstname,
                     lastname: editingUser.lastname,
-                    email: editingUser.email
+                    email: editingUser.email,
                 }),
             });
 
@@ -72,7 +72,8 @@ export default function UserList() {
                 setIsModalOpen(false);
                 alert("User updated successfully!");
             } else {
-                alert("Failed to update.");
+                const msg = await res.text();
+                alert("Failed to update. " + msg);
             }
         } catch (error) {
             console.error("Error updating user:", error);
@@ -81,79 +82,91 @@ export default function UserList() {
 
     // --- HTML DISPLAY ---
     return (
-        <div style={{ padding: "20px" }}>
-            <h2>User Management</h2>
+        <div className="user-page">
+            <div className="user-card">
+                <div className="user-header">
+                    <div>
+                        <h2 style={{ margin: 0 }}>User Management</h2>
+                        <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>Edit or remove existing accounts</p>
+                    </div>
+                    <button className="btn btn-primary" onClick={fetchUsers}>Refresh</button>
+                </div>
 
-            <table border="1" cellPadding="10" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Email</th> {/* Added Email Header */}
-                        <th>First Name</th>
-                        <th>Last Name</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.map(user => (
-                        <tr key={user._id}>
-                            <td>{user._id}</td>
-                            <td>{user.email}</td> {/* Added Email Data */}
-                            <td>{user.firstname}</td>
-                            <td>{user.lastname}</td>
-                            <td>
-                                <button onClick={() => openEditModal(user)}>Edit</button>
-                                &nbsp;
-                                <button onClick={() => handleDelete(user._id)} style={{ color: 'red' }}>Delete</button>
-                            </td>
+                <table className="user-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th style={{ textAlign: "right" }}>Actions</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {users.map(user => (
+                            <tr key={user._id} className="user-row">
+                                <td>
+                                    <div style={{ fontWeight: 700 }}>{user.firstname} {user.lastname}</div>
+                                    <div style={{ fontSize: 12, color: "#9ca3af" }}>@{user.username}</div>
+                                </td>
+                                <td>{user.email}</td>
+                                <td><span className="pill">{user.status || "ACTIVE"}</span></td>
+                                <td style={{ textAlign: "right" }}>
+                                    <button className="btn btn-ghost" onClick={() => openEditModal(user)}>Edit</button>
+                                    &nbsp;
+                                    <button className="btn btn-danger" onClick={() => handleDelete(user._id)}>Delete</button>
+                                </td>
+                            </tr>
+                        ))}
+                        {users.length === 0 && (
+                            <tr>
+                                <td colSpan={4} style={{ textAlign: "center", color: "#9ca3af", padding: "18px" }}>
+                                    No users found.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
 
             {/* --- EDIT POPUP WINDOW --- */}
             {isModalOpen && (
-                <div style={{
-                    position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-                    backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center"
-                }}>
-                    <div style={{
-                        backgroundColor: "white", padding: "20px", borderRadius: "8px", width: "300px",
-                        boxShadow: "0 4px 8px rgba(0,0,0,0.2)"
-                    }}>
-                        <h3>Edit User</h3>
+                <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()}>
+                        <div className="user-header" style={{ marginBottom: 12 }}>
+                            <h3 style={{ margin: 0 }}>Edit User</h3>
+                            <button className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>Close</button>
+                        </div>
 
-                        <label>First Name:</label><br />
-                        <input
-                            type="text" name="firstname"
-                            value={editingUser.firstname || ""}
-                            onChange={handleInputChange}
-                            style={{ width: "100%", marginBottom: "10px" }}
-                        /><br />
+                        <div className="form-grid">
+                            <div className="field">
+                                <label>First Name</label>
+                                <input
+                                    type="text" name="firstname"
+                                    value={editingUser.firstname || ""}
+                                    onChange={handleInputChange}
+                                />
+                            </div>
+                            <div className="field">
+                                <label>Last Name</label>
+                                <input
+                                    type="text" name="lastname"
+                                    value={editingUser.lastname || ""}
+                                    onChange={handleInputChange}
+                                />
+                            </div>
+                            <div className="field">
+                                <label>Email</label>
+                                <input
+                                    type="email" name="email"
+                                    value={editingUser.email || ""}
+                                    onChange={handleInputChange}
+                                />
+                            </div>
+                        </div>
 
-                        <label>Last Name:</label><br />
-                        <input
-                            type="text" name="lastname"
-                            value={editingUser.lastname || ""}
-                            onChange={handleInputChange}
-                            style={{ width: "100%", marginBottom: "10px" }}
-                        /><br />
-
-                        <label>Email:</label><br />
-                        <input
-                            type="email" name="email"
-                            value={editingUser.email || ""}
-                            onChange={handleInputChange}
-                            style={{ width: "100%", marginBottom: "20px" }}
-                        /><br />
-
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <button onClick={saveUser} style={{ backgroundColor: "green", color: "white", padding: "5px 10px" }}>
-                                Save
-                            </button>
-                            <button onClick={() => setIsModalOpen(false)} style={{ backgroundColor: "gray", color: "white", padding: "5px 10px" }}>
-                                Cancel
-                            </button>
+                        <div className="modal-actions">
+                            <button className="btn btn-primary" onClick={saveUser}>Save</button>
+                            <button className="btn btn-danger" onClick={() => handleDelete(editingUser._id)}>Delete</button>
                         </div>
                     </div>
                 </div>
